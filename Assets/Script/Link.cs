@@ -12,7 +12,7 @@ public class Link : MonoBehaviour, IPointerClickHandler
     private Image body;
     
     public bool IsActive;
-    
+
 	void Update()
     {
 		if (IsActive)
@@ -29,6 +29,7 @@ public class Link : MonoBehaviour, IPointerClickHandler
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        IsActive = !IsActive;
+        if (!AppManager.Instance.IsDrawingLink)
+            IsActive = !IsActive;
     }
 }

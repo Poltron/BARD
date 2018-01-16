@@ -28,12 +28,14 @@ public class SoundBlock : MonoBehaviour
 
     public Image front;
 
+    public int soundblockId;
+
     private void Awake()
     {
         source = GetComponent<AudioSource>();
     }
 
-    void Start()
+    public void Init()
     {
         List<Dropdown.OptionData> data = new List<Dropdown.OptionData>();
         data.Add(new Dropdown.OptionData(" "));
@@ -46,6 +48,10 @@ public class SoundBlock : MonoBehaviour
         dropdown.ClearOptions();
         dropdown.AddOptions(data);
         dropdown.onValueChanged.AddListener(delegate { DropdownValueChanged(); });
+    }
+
+    void Start()
+    {  
 	}
 	
 	void Update()
@@ -127,6 +133,16 @@ public class SoundBlock : MonoBehaviour
     public void OnPointerExit(PointerEventData eventData)
     {
         //GetComponent<Image>().color = Color.white;
+    }
+
+    public void SetClip(string name)
+    {
+        for (int i = 0; i < dropdown.options.Count; i++)
+        {
+            Debug.Log(dropdown.options[i].text + " // " + name);
+            if (dropdown.options[i].text == name)
+                dropdown.value = i;
+        }
     }
 
     public void DropdownValueChanged()
