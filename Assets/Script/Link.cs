@@ -29,7 +29,7 @@ public class Link : MonoBehaviour, IPointerClickHandler
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (!AppManager.Instance.IsDrawingLink)
+        if (!AppManager.Instance.InputController.IsDrawingLink)
             IsActive = !IsActive;
     }
 }

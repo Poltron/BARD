@@ -4,6 +4,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
+using System.Xml.Serialization;
+using System.IO;
+
 public class SoundBlock : MonoBehaviour
      , IPointerClickHandler
      , IDragHandler
@@ -30,29 +33,36 @@ public class SoundBlock : MonoBehaviour
 
     public int soundblockId;
 
+    private bool initialized;
+
     private void Awake()
     {
         source = GetComponent<AudioSource>();
     }
 
-    public void Init()
+    public void UpdateSoundlist()
     {
         List<Dropdown.OptionData> data = new List<Dropdown.OptionData>();
         data.Add(new Dropdown.OptionData(" "));
 
-        foreach (AudioClip clip in AppManager.Instance.clips)
+        foreach (AudioClip clip in AppManager.Instance.ScenarioManager.clips)
         {
             data.Add(new Dropdown.OptionData(clip.name));
         }
-
+        
         dropdown.ClearOptions();
         dropdown.AddOptions(data);
-        dropdown.onValueChanged.AddListener(delegate { DropdownValueChanged(); });
+
+        if (!initialized)
+        {
+            dropdown.onValueChanged.AddListener(delegate { DropdownValueChanged(); });
+            initialized = true;
+        }
     }
 
     void Start()
-    {  
-	}
+    {
+    }
 	
 	void Update()
     {
@@ -102,7 +112,7 @@ public class SoundBlock : MonoBehaviour
             source.time = 1;
             source.Play();
 
-            AppManager.Instance.SetActiveSoundBlock(this);
+            AppManager.Instance.ScenarioManager.SetActiveSoundBlock(this);
         }
     }
 
@@ -114,9 +124,9 @@ public class SoundBlock : MonoBehaviour
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (AppManager.Instance.IsDrawingLink)
+        if (AppManager.Instance.InputController.IsDrawingLink)
         {
-            AppManager.Instance.SoundblockClicked(this);
+            AppManager.Instance.InputController.SoundblockClicked(this);
         }
     }
 
@@ -139,7 +149,6 @@ public class SoundBlock : MonoBehaviour
     {
         for (int i = 0; i < dropdown.options.Count; i++)
         {
-            Debug.Log(dropdown.options[i].text + " // " + name);
             if (dropdown.options[i].text == name)
                 dropdown.value = i;
         }
@@ -147,7 +156,7 @@ public class SoundBlock : MonoBehaviour
 
     public void DropdownValueChanged()
     {
-        foreach (AudioClip clip in AppManager.Instance.clips)
+        foreach (AudioClip clip in AppManager.Instance.ScenarioManager.clips)
         {
             if (clip.name == dropdown.options[dropdown.value].text)
             {
