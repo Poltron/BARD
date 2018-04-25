@@ -10,6 +10,18 @@ public class GUIManager : MonoBehaviour
     public RectTransform scenarioOrigin;
 
     [SerializeField]
+    private Button scenarioViewButton;
+    [SerializeField]
+    private Button resourceViewButton;
+    [SerializeField]
+    private Canvas scenarioView;
+    [SerializeField]
+    private Canvas resourceView;
+
+    [SerializeField]
+    private GameObject viewBar;
+
+    [SerializeField]
     private Text scenarioName;
     [SerializeField]
     private Button saveScenario;
@@ -24,28 +36,51 @@ public class GUIManager : MonoBehaviour
     [SerializeField]
     private Button importAudioFile;
 
-    void Start () {
-		
-	}
-	
-	void Update () {
-		
-	}
-
-    public void EnableScenarioUI()
+    void Start()
     {
-        scenarioName.rectTransform.parent.gameObject.SetActive(true);
+        ToggleScenarioUI(false);
+    }
+    
+    public void ToggleScenarioUI(bool shown)
+    {
+        saveScenario.gameObject.SetActive(shown);
 
-        saveScenario.gameObject.SetActive(true);
-        startTrack.gameObject.SetActive(true);
-        stopTrack.gameObject.SetActive(true);
-        addSoundblock.gameObject.SetActive(true);
-        drawLink.gameObject.SetActive(true);
-        importAudioFile.gameObject.SetActive(true);
+        viewBar.gameObject.SetActive(shown);
+
+        ToggleScenarioView(shown);
+        ToggleResourceView(false);
     }
 
     public void ChangeScenarioName(string newName)
     {
         scenarioName.text = newName;
+    }
+
+    public void ToggleScenarioView(bool shown)
+    {
+        scenarioView.enabled = shown;
+        scenarioView.gameObject.SetActive(shown);
+        
+        scenarioViewButton.interactable = !shown;
+    }
+
+    public void ToggleResourceView(bool shown)
+    {
+        resourceView.enabled = shown;
+        resourceView.gameObject.SetActive(shown);
+        
+        resourceViewButton.interactable = !shown;
+    }
+
+    public void ScenarioViewButtonClick()
+    {
+        ToggleScenarioView(true);
+        ToggleResourceView(false);
+    }
+
+    public void ResourceViewButtonClick()
+    {
+        ToggleScenarioView(false);
+        ToggleResourceView(true);
     }
 }

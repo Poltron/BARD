@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SoundBlock : MonoBehaviour
+public class SoundBlock
 {
     public int soundblockId;
     public string clip;

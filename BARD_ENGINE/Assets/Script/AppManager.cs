@@ -8,17 +8,12 @@ public class AppManager : Singleton<AppManager>
 {
     protected AppManager() { }
 
-    [HideInInspector]
     public ScenarioManager ScenarioManager;
-    [HideInInspector]
     public GUIManager GUIManager;
-    [HideInInspector]
     public InputController InputController;
+    public ResourcesManager ResourcesManager;
 
     void Awake()
     {
-        ScenarioManager = GetComponent<ScenarioManager>();
-        GUIManager = GetComponent<GUIManager>();
-        InputController = GetComponent<InputController>();
     }
 }

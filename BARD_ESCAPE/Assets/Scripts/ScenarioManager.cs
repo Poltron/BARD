@@ -11,22 +11,21 @@ public class ScenarioManager : MonoBehaviour
     private GUIManager guiManager;
 
     [SerializeField]
-    private AudioSource audioSource;
-
-    [SerializeField]
-    private GameObject soundBlockPrefab;
+    private SoundHandler soundHandler;
 
     public List<SoundBlock> blocks;
-    public List<AudioClip> clips;
 
     private SoundBlock firstBlock;
-    private SoundBlock activeSoundBlock;
+    public SoundBlock FirstBlock { get { return firstBlock; } }
 
     private int nextID;
 
     private string scenarioUrl;
 
-    private bool isPaused;
+    private void Start()
+    {
+        blocks = new List<SoundBlock>();
+    }
 
     public void LoadScenario(string url)
     {
@@ -56,8 +55,9 @@ public class ScenarioManager : MonoBehaviour
         File.Delete("tmp/structure");
         Directory.Delete("tmp");
 
-        LoadScenarioStructure(structure);
+        ClearScenario();
 
+        LoadScenarioStructure(structure);
     }
 
     public void LoadScenarioStructure(string structure)
@@ -70,24 +70,13 @@ public class ScenarioManager : MonoBehaviour
             scenarioSave = (ScenarioSave)serializer.Deserialize(reader);
         }
 
-        ResetScenario();
-
         Debug.Log("Scenario Loading...");
 
         for (int i = 0; i < scenarioSave.soundblocks.Length; i++)
         {
             Debug.Log("Loading Soundblock " + scenarioSave.soundblocks[i].blockId);
-            bool clipFound = false;
-            foreach (var clip in clips)
-            {
-                if (clip.name == scenarioSave.soundblocks[i].clip)
-                {
-                    clipFound = true;
-                    break;
-                }
-            }
 
-            if (!clipFound)
+            if (!soundHandler.GetClip(scenarioSave.soundblocks[i].clip))
             {
                 Debug.Log("Soundblock " + i + ", Clip not found");
                 LoadAudioFile(scenarioSave.soundblocks[i].clip);
@@ -97,7 +86,7 @@ public class ScenarioManager : MonoBehaviour
                 Debug.Log("Soundblock " + i + ", Clip already loaded");
             }
 
-            SpawnSoundBlock(scenarioSave.soundblocks[i].blockId, scenarioSave.soundblocks[i].clip, scenarioSave.soundblocks[i].isLooping);
+            CreateSoundBlock(scenarioSave.soundblocks[i].blockId, scenarioSave.soundblocks[i].clip, scenarioSave.soundblocks[i].isLooping);
 
             Debug.Log("Loaded Soundblock " + scenarioSave.soundblocks[i].blockId);
         }
@@ -153,7 +142,7 @@ public class ScenarioManager : MonoBehaviour
 
         if (loadedAudioClip.loadState == AudioDataLoadState.Loaded)
         {
-            clips.Add(loadedAudioClip);
+            soundHandler.clips.Add(loadedAudioClip);
         }
         else
         {
@@ -162,87 +151,38 @@ public class ScenarioManager : MonoBehaviour
         Debug.Log("Audio File Loaded : " + url);
     }
 
-    public void SpawnSoundBlock()
+    public void CreateSoundBlock()
     {
-        SpawnSoundBlock(nextID, "", false);
+        CreateSoundBlock(nextID, "", false);
         nextID++;
     }
 
-    public void SpawnSoundBlock(int blockID, string clipName, bool isLooping)
+    public void CreateSoundBlock(int blockID, string clipName, bool isLooping)
     {
         Debug.Log("Spawning Soundblock " + blockID + " with " + clipName);
-        GameObject blockGO = GameObject.Instantiate(soundBlockPrefab, Vector3.zero, Quaternion.identity);
 
-        SoundBlock soundBlock = blockGO.GetComponent<SoundBlock>();
+        SoundBlock soundBlock = new SoundBlock();
         soundBlock.soundblockId = blockID;
         soundBlock.isLooping = isLooping;
         soundBlock.clip = clipName;
-
+            
         if (blocks.Count == 0)
         {
             firstBlock = soundBlock;
         }
 
         blocks.Add(soundBlock);
+
         Debug.Log("Spawned Soundblock " + blockID);
-    }
-
-    public void ApplySoundblockToSource()
-    {
-        audioSource.clip = GetClip(activeSoundBlock.clip);
-        audioSource.loop = activeSoundBlock.isLooping;
-    }
-
-    public void PlayScenario()
-    {
-        if (isPaused)
-        {
-            isPaused = false;
-            audioSource.UnPause();
-        }
-        else
-        {
-            activeSoundBlock = firstBlock;
-            ApplySoundblockToSource();
-            audioSource.Play();
-        }
-    }
-
-    public void PauseScenario()
-    {
-        isPaused = true;
-        audioSource.Pause();
-    }
-
-    public void StopScenario()
-    {
-        audioSource.Stop();
-        isPaused = false;
-    }
-
-    public void ResetScenario()
-    {
-        activeSoundBlock = null;
     }
 
     public void ClearScenario()
     {
-        for (int i = 0; i < blocks.Count; i++)
-        {
-            Destroy(blocks[i].gameObject);
-        }
-
         blocks.Clear();
 
-        for (int i = 0; i < clips.Count; i++)
-        {
-            clips[i].UnloadAudioData();
-        }
-
-        clips.Clear();
+        soundHandler.ClearClips();
 
         firstBlock = null;
-        activeSoundBlock = null;
 
         nextID = 0;
     }
@@ -254,19 +194,6 @@ public class ScenarioManager : MonoBehaviour
             if (block.soundblockId == id)
             {
                 return block;
-            }
-        }
-
-        return null;
-    }
-
-    public AudioClip GetClip(string name)
-    {
-        foreach (AudioClip clip in clips)
-        {
-            if (clip.name == name)
-            {
-                return clip;
             }
         }
 

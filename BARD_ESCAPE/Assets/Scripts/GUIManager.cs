@@ -10,6 +10,9 @@ public class GUIManager : MonoBehaviour
     ScenarioManager scenarioManager;
 
     [SerializeField]
+    SoundHandler soundHandler;
+
+    [SerializeField]
     private Canvas canvas;
 
     [SerializeField]
@@ -125,22 +128,22 @@ public class GUIManager : MonoBehaviour
 
     public void ResetScenario()
     {
-        scenarioManager.ResetScenario();
+        soundHandler.ResetScenario();
     }
 
     public void PlayButton()
     {
-        scenarioManager.PlayScenario();
+        soundHandler.PlayScenario();
     }
 
     public void PauseButton()
     {
-        scenarioManager.PauseScenario();
+        soundHandler.PauseScenario();
     }
 
     public void StopButton()
     {
-        scenarioManager.StopScenario();
+        soundHandler.StopScenario();
     }
 
     public void ChangeScenarioName(string text)

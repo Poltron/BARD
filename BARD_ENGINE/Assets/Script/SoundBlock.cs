@@ -45,9 +45,9 @@ public class SoundBlock : MonoBehaviour
         List<Dropdown.OptionData> data = new List<Dropdown.OptionData>();
         data.Add(new Dropdown.OptionData(" "));
 
-        foreach (AudioClip clip in AppManager.Instance.ScenarioManager.clips)
+        foreach (Resource resource in AppManager.Instance.ResourcesManager.Resources)
         {
-            data.Add(new Dropdown.OptionData(clip.name));
+            data.Add(new Dropdown.OptionData(resource.Name));
         }
         
         dropdown.ClearOptions();
@@ -76,8 +76,8 @@ public class SoundBlock : MonoBehaviour
             else
                 To = nextBlock.rear.GetComponent<RectTransform>().position;
 
-            Vector3 FromTo = To - link.GetComponent<RectTransform>().position;
-            link.GetComponent<RectTransform>().sizeDelta = new Vector2(FromTo.magnitude, 5);
+            Vector3 FromTo = To - front.transform.position;
+            link.GetComponent<RectTransform>().sizeDelta = new Vector2(FromTo.magnitude / 0.64f, 5); // 0.64f c'est le scale du canvas scaler.... wtf mate
             link.GetComponent<RectTransform>().right = FromTo;
         }
 
@@ -156,15 +156,15 @@ public class SoundBlock : MonoBehaviour
 
     public void DropdownValueChanged()
     {
-        foreach (AudioClip clip in AppManager.Instance.ScenarioManager.clips)
+        foreach (Resource resource in AppManager.Instance.ResourcesManager.Resources)
         {
-            if (clip.name == dropdown.options[dropdown.value].text)
+            if (resource.Name == dropdown.options[dropdown.value].text)
             {
                 if (source != null)
                 {
-                    source.clip = clip;
+                    source.clip = resource.Clip;
 
-                    if (clip.name.Contains("Loop"))
+                    if (source.clip.name.Contains("Loop"))
                     {
                         source.loop = true;
 

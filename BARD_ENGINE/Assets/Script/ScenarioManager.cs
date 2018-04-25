@@ -21,7 +21,7 @@ public class ScenarioManager : MonoBehaviour
     private SoundBlock activeSoundBlock;
 
     public List<SoundBlock> blocks;
-    public List<AudioClip> clips;
+    //public List<AudioClip> clips;
 
     private int nextID;
 
@@ -31,7 +31,7 @@ public class ScenarioManager : MonoBehaviour
     void Start()
     {
         blocks = new List<SoundBlock>();
-        clips = new List<AudioClip>();
+        //clips = new List<AudioClip>();
 
         nextID = 0;
     }
@@ -70,44 +70,42 @@ public class ScenarioManager : MonoBehaviour
         return null;
     }
 
-    public AudioClip GetClip(string name)
-    {
-        foreach (AudioClip clip in clips)
-        {
-            if (clip.name == name)
-            {
-                return clip;
-            }
-        }
-
-        return null;
-    }
-
     /*
      *      SOUNDBLOCKS
      */
 
+
+    /*
+     *      Spawns a default soundblock
+     */
     public void SpawnSoundBlock()
     {
-        SpawnSoundBlock(Vector3.zero, nextID, "", false);
+        SpawnSoundBlock(Vector3.zero, nextID, -1, false);
         nextID++;
     }
 
-    public void SpawnSoundBlock(Vector3 position, int blockID, string clipName, bool isLooping)
+    /*
+     *      Spawns a soundblock with specific values
+     */
+    public void SpawnSoundBlock(Vector3 position, int blockID, int clipId, bool isLooping)
     {
-        Debug.Log("Spawning Soundblock " + blockID + " with " + clipName);
+        Debug.Log("Spawning Soundblock " + blockID + " with " + clipId);
         GameObject blockGO = GameObject.Instantiate(SoundBlockPrefab, Vector3.zero, Quaternion.identity);
-        blockGO.transform.SetParent(AppManager.Instance.GUIManager.scenarioOrigin);
+        blockGO.transform.SetParent(AppManager.Instance.GUIManager.scenarioOrigin, false);
         blockGO.transform.localPosition = position;
-
+        
+        // Set the audio on the soundblock
         SoundBlock soundBlock = blockGO.GetComponent<SoundBlock>();
         soundBlock.UpdateSoundlist();
         soundBlock.soundblockId = blockID;
 
         AudioSource source = soundBlock.GetComponent<AudioSource>();
         source.loop = isLooping;
-        soundBlock.SetClip(clipName);
-
+        
+        if (clipId != -1)
+            soundBlock.SetClip(AppManager.Instance.ResourcesManager.GetResource(clipId).Name);
+        
+        // check if soundblock is the first, if so it is the entry point of the scenario
         if (blocks.Count == 0)
         {
             firstBlock = soundBlock;
@@ -119,12 +117,17 @@ public class ScenarioManager : MonoBehaviour
         Debug.Log("Spawned Soundblock " + blockID);
     }
 
+    /*
+     *      Draw a transition link between to soundblocks
+     */
     public void DrawLink(SoundBlock FromSoundBlock, SoundBlock ToSoundBlock)
     {
+        // Spawns link
         GameObject go = GameObject.Instantiate(LinkPrefab, Vector3.zero, Quaternion.identity);
-        go.transform.SetParent(FromSoundBlock.transform);
+        go.transform.SetParent(FromSoundBlock.transform, false);
         FromSoundBlock.link = go.GetComponent<Link>();
 
+        // if the FROM block is looping, disable automatic transition
         if (!FromSoundBlock.source.loop)
             FromSoundBlock.link.IsActive = true;
         else
@@ -170,12 +173,20 @@ public class ScenarioManager : MonoBehaviour
         Debug.Log(scenarioUrl);
 
         AppManager.Instance.GUIManager.ChangeScenarioName(path);
-        AppManager.Instance.GUIManager.EnableScenarioUI();
+        AppManager.Instance.GUIManager.ToggleScenarioUI(true);
     }
 
     public void SaveScenario()
     {
         ScenarioSave scenario = new ScenarioSave();
+
+        scenario.resources = new ResourceData[AppManager.Instance.ResourcesManager.Count()];
+        for (int i = 0; i < scenario.resources.Length; ++i)
+        {
+            ResourceData resourceData = new ResourceData();
+            resourceData.id = AppManager.Instance.ResourcesManager.Resources[i].Id;
+        }
+
         scenario.soundblocks = new SoundBlockData[blocks.Count];
         int linkCount = 0;
         for (int i = 0; i < blocks.Count; i++)
@@ -184,9 +195,9 @@ public class ScenarioManager : MonoBehaviour
             SoundBlock block = blocks[i];
             blockData.blockId = block.soundblockId;
             if (block.source.clip != null)
-                blockData.clip = block.source.clip.name;
+                blockData.clipId = AppManager.Instance.ResourcesManager.GetResource(block.source.clip.name).Id;
             else
-                blockData.clip = "";
+                blockData.clipId = -1;
 
             if (firstBlock == block)
                 blockData.isFirstBlock = true;
@@ -218,7 +229,8 @@ public class ScenarioManager : MonoBehaviour
             }
         }
 
-        scenario.nextId = nextID;
+        scenario.soundBlockNextId = nextID;
+        scenario.resourceNextId = AppManager.Instance.ResourcesManager.nextResourceID;
 
         XmlSerializer writer = new XmlSerializer(scenario.GetType());
         using (FileStream stream = File.Create("structure"))
@@ -226,8 +238,6 @@ public class ScenarioManager : MonoBehaviour
             writer.Serialize(stream, scenario);
             stream.Close();
         }
-        
-        Debug.Log("Saving Project " + scenarioUrl);
 
         ZipFile zip = ZipFile.Read(scenarioUrl);
         zip.RemoveEntry("structure");
@@ -235,6 +245,8 @@ public class ScenarioManager : MonoBehaviour
         zip.Save(scenarioUrl);
 
         File.Delete("structure");
+
+        Debug.Log("Saved Project " + scenarioUrl);
     }
 
     public void LoadScenario()
@@ -249,10 +261,11 @@ public class ScenarioManager : MonoBehaviour
             scenarioUrl = new System.Uri(paths[0]).AbsolutePath;
             isScenarioOpened = true;
 
-            AppManager.Instance.GUIManager.ChangeScenarioName(paths[0]);
-            AppManager.Instance.GUIManager.EnableScenarioUI();
-
             LoadScenarioFile(new System.Uri(paths[0]).AbsolutePath);
+
+            AppManager.Instance.GUIManager.ChangeScenarioName(paths[0]);
+            AppManager.Instance.GUIManager.ToggleScenarioUI(true);
+
         }
     }
 
@@ -273,7 +286,8 @@ public class ScenarioManager : MonoBehaviour
         string structure = File.ReadAllText("structure");
         File.Delete("structure");
 
-        LoadScenarioStructure(structure);
+        if (structure != "")
+            LoadScenarioStructure(structure);
     }
 
     public void LoadScenarioStructure(string structure)
@@ -292,27 +306,20 @@ public class ScenarioManager : MonoBehaviour
         for (int i = 0; i < scenarioSave.soundblocks.Length; i++)
         {
             Debug.Log("Loading Soundblock " + scenarioSave.soundblocks[i].blockId);
-            bool clipFound = false;
-            foreach(var clip in clips)
-            {
-                if (clip.name == scenarioSave.soundblocks[i].clip)
-                {
-                    clipFound = true;
-                    break;
-                }
-            }
 
-            if (!clipFound)
+            Resource soundBlockResource = AppManager.Instance.ResourcesManager.GetResource(scenarioSave.soundblocks[i].clipId);
+
+            if (soundBlockResource == null)
             {
                 Debug.Log("Soundblock " + i + ", Clip not found");
-                LoadAudioFile(scenarioSave.soundblocks[i].clip);
+                LoadAudioFile(scenarioSave.soundblocks[i].clipId.ToString());
             }
             else
             {
                 Debug.Log("Soundblock " + i + ", Clip already loaded");
             }
 
-            SpawnSoundBlock(scenarioSave.soundblocks[i].position, scenarioSave.soundblocks[i].blockId, scenarioSave.soundblocks[i].clip, scenarioSave.soundblocks[i].isLooping);
+            SpawnSoundBlock(scenarioSave.soundblocks[i].position, scenarioSave.soundblocks[i].blockId, scenarioSave.soundblocks[i].clipId, scenarioSave.soundblocks[i].isLooping);
 
             Debug.Log("Loaded Soundblock " + scenarioSave.soundblocks[i].blockId);
         }
@@ -326,7 +333,8 @@ public class ScenarioManager : MonoBehaviour
 
         Debug.Log("Scenario Loaded");
 
-        nextID = scenarioSave.nextId;
+        nextID = scenarioSave.soundBlockNextId;
+        AppManager.Instance.ResourcesManager.nextResourceID = scenarioSave.resourceNextId;
     }
 
     public void ResetScenario()
@@ -340,13 +348,8 @@ public class ScenarioManager : MonoBehaviour
         }
 
         blocks.Clear();
-        
-        for (int i = 0; i < clips.Count; i++)
-        {
-            clips[i].UnloadAudioData();
-        }
 
-        clips.Clear();
+        AppManager.Instance.ResourcesManager.ClearResources();
 
         firstBlock = null;
         activeSoundBlock = null;
@@ -418,6 +421,7 @@ public class ScenarioManager : MonoBehaviour
         
         string[] urlSplit = url.Split('/');
         string fileName = urlSplit[urlSplit.Length - 1].Split('.')[0];
+        int fileId = AppManager.Instance.ResourcesManager.nextResourceID;
 
         while (!loader.isDone)
             yield return loader;
@@ -427,57 +431,65 @@ public class ScenarioManager : MonoBehaviour
         float[] samples = new float[myAudioClip.samples * myAudioClip.channels];
         myAudioClip.GetData(samples, 0);
 
-        using (FileStream fs = File.Open(fileName, FileMode.Create))
+        using (FileStream fs = File.Open(fileId.ToString(), FileMode.Create))
         {
             StreamWriter sw = new StreamWriter(fs);
 
             int i = 0;
-            sw.WriteLine(myAudioClip.frequency + "/" + myAudioClip.channels + "/" + myAudioClip.length + "/" + myAudioClip.samples);
+            sw.WriteLine(fileName + "/" + myAudioClip.frequency + "/" + myAudioClip.channels + "/" + myAudioClip.length + "/" + myAudioClip.samples);
 
             for (i = 0; i < samples.Length; i++)
             {
-
                 sw.WriteLine(samples[i]);
             }
         }
-        
+
+        myAudioClip.UnloadAudioData();
+
         ZipFile zip = ZipFile.Read(scenarioUrl);
-        zip.AddFile(fileName);
+        zip.AddFile(fileId.ToString());
         zip.Save(scenarioUrl);
         zip.Dispose();
 
-        File.Delete(fileName);
+        File.Delete(fileId.ToString());
         Debug.Log("Imported Audio File " + url);
-        LoadAudioFile(fileName);
+        LoadAudioFile(fileId.ToString());
     }
 
-    private void LoadAudioFile(string url)
+    private void LoadAudioFile(string fileUrl)
     {
-        Debug.Log("LoadAudioFile " + url);
+        if (fileUrl == "" || fileUrl == "-1")
+            return;
+
+        Debug.Log("LoadAudioFile " + fileUrl);
         ZipFile scenario = ZipFile.Read(scenarioUrl);
+        Debug.Log("scenario found");
 
         Directory.CreateDirectory("extraction");
         foreach(var entry in scenario.Entries)
         {
-            if (entry.FileName == url)
+            if (entry.FileName == fileUrl)
             {
                 entry.Extract("extraction");
+                Debug.Log(fileUrl + " found!");
                 break;
             }
         }
         scenario.Dispose();
 
-        string[] lines = File.ReadAllLines("extraction\\" + url);
+        string[] lines = File.ReadAllLines("extraction\\" + fileUrl);
         Directory.Delete("extraction", true);
+
+        Debug.Log(fileUrl + " read!");
 
         string[] info = lines[0].Split('/');
 
-        int frequency = int.Parse(info[0]);
-        int channels = int.Parse(info[1]);
-        float length = float.Parse(info[2]);
-        int nbOfSamples = int.Parse(info[3]);
+        string audioName = info[0];
+        int frequency = int.Parse(info[1]);
+        int channels = int.Parse(info[2]);
+        float length = float.Parse(info[3]);
+        int nbOfSamples = int.Parse(info[4]);
 
-        AudioClip loadedAudioClip = AudioClip.Create(url, nbOfSamples, channels, frequency, false);
         float[] readSamples = new float[nbOfSamples * channels];
 
         for (int i = 1; i < lines.Length; i++)
@@ -485,18 +497,20 @@ public class ScenarioManager : MonoBehaviour
             readSamples[i] = float.Parse(lines[i]);
         }
 
-        loadedAudioClip.SetData(readSamples, 0);
+        Debug.Log(fileUrl + " yup!");
 
-        if (loadedAudioClip.loadState == AudioDataLoadState.Loaded)
+        int id = AppManager.Instance.ResourcesManager.CreateResource(audioName, nbOfSamples, channels, frequency, readSamples);
+
+        if (AppManager.Instance.ResourcesManager.GetResource(id).Clip.loadState == AudioDataLoadState.Loaded)
         {
-            clips.Add(loadedAudioClip);
             UpdateSoundblockAudioLists();
         }
         else
         {
-            Debug.LogError("AudioClip didn't load properly");
+            Debug.LogError("Resource " + audioName + " / " + fileUrl + " didn't load properly");
         }
-        Debug.Log("Audio File Loaded : " + url);
+
+        Debug.Log("Audio File Loaded : " + audioName + " / " + fileUrl);
     }
 
     private void UpdateSoundblockAudioLists()
@@ -511,9 +525,11 @@ public class ScenarioManager : MonoBehaviour
 [System.Serializable]
 public struct ScenarioSave
 {
+    public ResourceData[] resources;
     public SoundBlockData[] soundblocks;
     public LinkData[] links;
-    public int nextId;
+    public int soundBlockNextId;
+    public int resourceNextId;
 }
 
 [System.Serializable]
@@ -521,7 +537,7 @@ public struct SoundBlockData
 {
     public int blockId;
     public Vector3 position;
-    public string clip;
+    public int clipId;
     public bool isFirstBlock;
     public bool isLooping;
 }
@@ -532,4 +548,10 @@ public struct LinkData
     public int fromSoundblock;
     public int toSoundblock;
     public bool isActive;
+}
+
+[System.Serializable]
+public struct ResourceData
+{
+    public int id;
 }
