@@ -6,6 +6,7 @@ using System.IO;
 using System.Xml.Serialization;
 using SFB; // StandardFileBrowser Plugin
 using Ionic.Zip;
+//using ICSharpCode.SharpZipLib.Zip;
 
 public class ScenarioManager : MonoBehaviour
 {
@@ -447,11 +448,14 @@ public class ScenarioManager : MonoBehaviour
         myAudioClip.UnloadAudioData();
 
         ZipFile zip = ZipFile.Read(scenarioUrl);
+
+        if (zip.ContainsEntry(fileId.ToString()))
+            zip.RemoveEntry(fileId.ToString());
+
         zip.AddFile(fileId.ToString());
         zip.Save(scenarioUrl);
         zip.Dispose();
-
-        File.Delete(fileId.ToString());
+        
         Debug.Log("Imported Audio File " + url);
         LoadAudioFile(fileId.ToString());
     }
@@ -466,21 +470,22 @@ public class ScenarioManager : MonoBehaviour
         Debug.Log("scenario found");
 
         Directory.CreateDirectory("extraction");
-        foreach(var entry in scenario.Entries)
+        
+        Debug.Log("createdirectory extraction done");
+        foreach (var entry in scenario.Entries)
         {
             if (entry.FileName == fileUrl)
             {
-                entry.Extract("extraction");
                 Debug.Log(fileUrl + " found!");
+                entry.Extract("extraction");
+                Debug.Log(fileUrl + " extracted!");
                 break;
             }
         }
         scenario.Dispose();
+        Debug.Log("scenario dispose");
 
         string[] lines = File.ReadAllLines("extraction\\" + fileUrl);
-        Directory.Delete("extraction", true);
-
-        Debug.Log(fileUrl + " read!");
 
         string[] info = lines[0].Split('/');
 
@@ -489,15 +494,30 @@ public class ScenarioManager : MonoBehaviour
         int channels = int.Parse(info[2]);
         float length = float.Parse(info[3]);
         int nbOfSamples = int.Parse(info[4]);
+        
+        Debug.Log(nbOfSamples * channels);
 
         float[] readSamples = new float[nbOfSamples * channels];
 
         for (int i = 1; i < lines.Length; i++)
         {
-            readSamples[i] = float.Parse(lines[i]);
+            if (lines[i] != "")
+                readSamples[i] = float.Parse(lines[i]);
         }
 
-        Debug.Log(fileUrl + " yup!");
+        if (File.Exists(fileUrl))
+        {
+            Debug.Log("file " + fileUrl + " exists, deleting...");
+            File.Delete(fileUrl);
+            Debug.Log("file " + fileUrl + " deleted !");
+        }
+        else
+        {
+            Debug.Log("file " + fileUrl + " doesn't exist.");
+        }
+
+        Directory.Delete("extraction", true);
+        Debug.Log("directory delete extraction");
 
         int id = AppManager.Instance.ResourcesManager.CreateResource(audioName, nbOfSamples, channels, frequency, readSamples);
 

@@ -71,13 +71,19 @@ public class SoundBlock : MonoBehaviour
             link.GetComponent<Transform>().position = front.transform.position;
 
             Vector3 To;
+            float div = 1.0f;
             if (nextBlock == null)
+            {
                 To = Input.mousePosition;
+            }
             else
+            {
                 To = nextBlock.rear.GetComponent<RectTransform>().position;
+            }
 
             Vector3 FromTo = To - front.transform.position;
-            link.GetComponent<RectTransform>().sizeDelta = new Vector2(FromTo.magnitude / 0.64f, 5); // 0.64f c'est le scale du canvas scaler.... wtf mate
+
+            link.GetComponent<RectTransform>().sizeDelta = new Vector2(FromTo.magnitude / div, 5); // 0.64f c'est le scale du canvas scaler.... wtf mate
             link.GetComponent<RectTransform>().right = FromTo;
         }
 

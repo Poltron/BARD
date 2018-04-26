@@ -17,6 +17,18 @@ public class GUIManager : MonoBehaviour
     private Canvas scenarioView;
     [SerializeField]
     private Canvas resourceView;
+    [SerializeField]
+    private RectTransform resourceListContent;
+    [SerializeField]
+    private GameObject resourceListEntryPrefab;
+
+    private List<RectTransform> resourceListEntries;
+
+    [SerializeField]
+    private RectTransform resourceWavePanel;
+
+    [SerializeField]
+    private RectTransform resourceDetailsPanel;
 
     [SerializeField]
     private GameObject viewBar;
@@ -35,6 +47,11 @@ public class GUIManager : MonoBehaviour
     private Button drawLink;
     [SerializeField]
     private Button importAudioFile;
+
+    void Awake()
+    {
+        resourceListEntries = new List<RectTransform>();
+    }
 
     void Start()
     {
@@ -82,5 +99,24 @@ public class GUIManager : MonoBehaviour
     {
         ToggleScenarioView(false);
         ToggleResourceView(true);
+    }
+
+    public void AddResourceViewListEntry(Resource resource)
+    {
+        GameObject go = GameObject.Instantiate(resourceListEntryPrefab, Vector3.zero, Quaternion.identity);
+        go.transform.SetParent(resourceListContent);
+        go.transform.localPosition = new Vector3( 15, -15 + resourceListEntries.Count * -40, 0);
+
+        go.GetComponent<ResourceViewEntry>().SetResource(resource.Id);
+        go.GetComponentInChildren<Text>().text = resource.Name;
+
+        resourceListEntries.Add(go.GetComponent<RectTransform>());
+    }
+
+    public void ViewResourceEntry(int resourceId)
+    {
+        Resource res = AppManager.Instance.ResourcesManager.GetResource(resourceId);
+        resourceDetailsPanel.GetComponentInChildren<Text>().text = "Name : " + res.Name + "            " + "Id : " + res.Id + "\n\n" + "Length : " + res.Clip.length + " sec" + "            " + "Frequency : " + res.Clip.frequency + "            " + "Channels : " + res.Clip.channels;
+        resourceWavePanel.GetComponent<SoundwaveDrawer>().Draw(res.Clip);
     }
 }

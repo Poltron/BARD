@@ -21,6 +21,8 @@ public class ResourcesManager : MonoBehaviour
         resource.Initialize(name, nbOfSamples, channels, frequency, data);
         resources.Add(resource);
 
+        AppManager.Instance.GUIManager.AddResourceViewListEntry(resource);
+
         return resource.Id;
     }
 
