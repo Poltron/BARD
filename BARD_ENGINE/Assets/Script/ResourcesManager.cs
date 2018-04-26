@@ -14,11 +14,11 @@ public class ResourcesManager : MonoBehaviour
         resources = new List<Resource>();
     }
 
-    public int CreateResource(string name, int nbOfSamples, int channels, int frequency, float[] data)
+    public int CreateResource(string name, int nbOfSamples, int channels, int frequency, float[] data, int BPM, int BPB)
     {
         Resource resource = new Resource(GetNextResourceId());
         nextResourceID++;
-        resource.Initialize(name, nbOfSamples, channels, frequency, data);
+        resource.Initialize(name, nbOfSamples, channels, frequency, data, 0, 0);
         resources.Add(resource);
 
         AppManager.Instance.GUIManager.AddResourceViewListEntry(resource);

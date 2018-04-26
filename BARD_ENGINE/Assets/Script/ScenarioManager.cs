@@ -437,7 +437,7 @@ public class ScenarioManager : MonoBehaviour
             StreamWriter sw = new StreamWriter(fs);
 
             int i = 0;
-            sw.WriteLine(fileName + "/" + myAudioClip.frequency + "/" + myAudioClip.channels + "/" + myAudioClip.length + "/" + myAudioClip.samples);
+            sw.WriteLine(fileName + "/" + myAudioClip.frequency + "/" + myAudioClip.channels + "/" + myAudioClip.length + "/" + myAudioClip.samples + "/" + 0 + "/" + 0);
 
             for (i = 0; i < samples.Length; i++)
             {
@@ -494,8 +494,8 @@ public class ScenarioManager : MonoBehaviour
         int channels = int.Parse(info[2]);
         float length = float.Parse(info[3]);
         int nbOfSamples = int.Parse(info[4]);
-        
-        Debug.Log(nbOfSamples * channels);
+        int BPM = int.Parse(info[5]);
+        int BPB = int.Parse(info[6]);
 
         float[] readSamples = new float[nbOfSamples * channels];
 
@@ -519,7 +519,7 @@ public class ScenarioManager : MonoBehaviour
         Directory.Delete("extraction", true);
         Debug.Log("directory delete extraction");
 
-        int id = AppManager.Instance.ResourcesManager.CreateResource(audioName, nbOfSamples, channels, frequency, readSamples);
+        int id = AppManager.Instance.ResourcesManager.CreateResource(audioName, nbOfSamples, channels, frequency, readSamples, BPM, BPB);
 
         if (AppManager.Instance.ResourcesManager.GetResource(id).Clip.loadState == AudioDataLoadState.Loaded)
         {

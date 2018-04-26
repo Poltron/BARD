@@ -25,13 +25,15 @@ public class GUIManager : MonoBehaviour
     private List<RectTransform> resourceListEntries;
 
     [SerializeField]
-    private RectTransform resourceWavePanel;
+    private SoundwaveDrawer resourceWavePanel;
 
     [SerializeField]
-    private RectTransform resourceDetailsPanel;
+    private ResourceViewDetails resourceDetailsPanel;
 
     [SerializeField]
     private GameObject viewBar;
+
+    private int activeResourceViewId;
 
     [SerializeField]
     private Text scenarioName;
@@ -51,6 +53,7 @@ public class GUIManager : MonoBehaviour
     void Awake()
     {
         resourceListEntries = new List<RectTransform>();
+        activeResourceViewId = -1;
     }
 
     void Start()
@@ -115,8 +118,14 @@ public class GUIManager : MonoBehaviour
 
     public void ViewResourceEntry(int resourceId)
     {
+        if (activeResourceViewId == resourceId)
+            return;
+
+        activeResourceViewId = resourceId;
+
         Resource res = AppManager.Instance.ResourcesManager.GetResource(resourceId);
-        resourceDetailsPanel.GetComponentInChildren<Text>().text = "Name : " + res.Name + "            " + "Id : " + res.Id + "\n\n" + "Length : " + res.Clip.length + " sec" + "            " + "Frequency : " + res.Clip.frequency + "            " + "Channels : " + res.Clip.channels;
-        resourceWavePanel.GetComponent<SoundwaveDrawer>().Draw(res.Clip);
+
+        resourceDetailsPanel.SetDetails(resourceId);
+        resourceWavePanel.Draw(res.Clip);
     }
 }
