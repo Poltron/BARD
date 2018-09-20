@@ -6,6 +6,7 @@ using System.IO;
 using System.Xml.Serialization;
 using SFB; // StandardFileBrowser Plugin
 using Ionic.Zip;
+using System;
 //using ICSharpCode.SharpZipLib.Zip;
 
 public class ScenarioManager : MonoBehaviour
@@ -180,12 +181,15 @@ public class ScenarioManager : MonoBehaviour
     public void SaveScenario()
     {
         ScenarioSave scenario = new ScenarioSave();
+        Debug.Log(" /////////////////////////////////////////////// ");
 
         scenario.resources = new ResourceData[AppManager.Instance.ResourcesManager.Count()];
         for (int i = 0; i < scenario.resources.Length; ++i)
         {
             ResourceData resourceData = new ResourceData();
             resourceData.id = AppManager.Instance.ResourcesManager.Resources[i].Id;
+            scenario.resources[i] = resourceData;
+            Debug.Log("save resource " + resourceData.id);
         }
 
         scenario.soundblocks = new SoundBlockData[blocks.Count];
@@ -314,6 +318,8 @@ public class ScenarioManager : MonoBehaviour
             {
                 Debug.Log("Soundblock " + i + ", Clip not found");
                 LoadAudioFile(scenarioSave.soundblocks[i].clipId.ToString());
+
+                Debug.Log(AppManager.Instance.ResourcesManager.GetResource(scenarioSave.soundblocks[i].clipId).Transitions.Count);
             }
             else
             {
@@ -432,30 +438,50 @@ public class ScenarioManager : MonoBehaviour
         float[] samples = new float[myAudioClip.samples * myAudioClip.channels];
         myAudioClip.GetData(samples, 0);
 
+        // Création du fichier Data
         using (FileStream fs = File.Open(fileId.ToString(), FileMode.Create))
         {
             StreamWriter sw = new StreamWriter(fs);
 
             int i = 0;
-            sw.WriteLine(fileName + "/" + myAudioClip.frequency + "/" + myAudioClip.channels + "/" + myAudioClip.length + "/" + myAudioClip.samples + "/" + 0 + "/" + 0);
+            sw.WriteLine(fileName + "/" + myAudioClip.frequency + "/" + myAudioClip.channels + "/" + myAudioClip.length + "/" + myAudioClip.samples);
 
             for (i = 0; i < samples.Length; i++)
             {
                 sw.WriteLine(samples[i]);
             }
+
+            sw.Close();
+            fs.Close();
         }
 
         myAudioClip.UnloadAudioData();
 
-        ZipFile zip = ZipFile.Read(scenarioUrl);
+        // Création du fichier Setup
+        using (FileStream fs = File.Open(fileId.ToString() + "_setup", FileMode.Create))
+        {
+            StreamWriter sw = new StreamWriter(fs);
+            sw.WriteLine(0.0 + "/" + 0.0 + "/" + 0.0 + "/" + myAudioClip.length);
+            sw.WriteLine(0 + ":");
+            sw.Close();
+            fs.Close();
+        }
 
-        if (zip.ContainsEntry(fileId.ToString()))
-            zip.RemoveEntry(fileId.ToString());
+        using (ZipFile zip = ZipFile.Read(scenarioUrl))
+        {
+            zip.AddFile(fileId.ToString());
+            zip.AddFile(fileId.ToString() + "_setup");
 
-        zip.AddFile(fileId.ToString());
-        zip.Save(scenarioUrl);
-        zip.Dispose();
-        
+            zip.Save(scenarioUrl);
+            zip.Dispose();
+        }
+
+        if (File.Exists(fileId.ToString()))
+            File.Delete(fileId.ToString());
+
+        if (File.Exists(fileId.ToString() + "_setup"))
+            File.Delete(fileId.ToString() + "_setup");
+
         Debug.Log("Imported Audio File " + url);
         LoadAudioFile(fileId.ToString());
     }
@@ -466,60 +492,88 @@ public class ScenarioManager : MonoBehaviour
             return;
 
         Debug.Log("LoadAudioFile " + fileUrl);
-        ZipFile scenario = ZipFile.Read(scenarioUrl);
-        Debug.Log("scenario found");
 
-        Directory.CreateDirectory("extraction");
-        
-        Debug.Log("createdirectory extraction done");
-        foreach (var entry in scenario.Entries)
+        using (ZipFile scenario = ZipFile.Read(scenarioUrl))
         {
-            if (entry.FileName == fileUrl)
+            if (Directory.Exists("extraction"))
+                Directory.Delete("extraction", true);
+
+            Directory.CreateDirectory("extraction");
+
+            scenario.ExtractSelectedEntries("name=" + fileUrl + " OR name =" + fileUrl + "_setup", null, "extraction");
+            scenario.Dispose();
+        }
+
+        if (!File.Exists("extraction\\" + fileUrl) || !File.Exists("extraction\\" + fileUrl + "_setup"))
+        {
+            Debug.LogError("LoadAudioFile raté : Fichiers " + fileUrl + " ou " + fileUrl + "_setup manquant.");
+            return;
+        }
+
+        string[] linesData = File.ReadAllLines("extraction\\" + fileUrl);
+        string[] infoData = linesData[0].Split('/');
+        string audioName = infoData[0];
+        int frequency = int.Parse(infoData[1]);
+        int channels = int.Parse(infoData[2]);
+        float length = float.Parse(infoData[3]);
+        int nbOfSamples = int.Parse(infoData[4]);
+
+        string[] linesSetup = File.ReadAllLines("extraction\\" + fileUrl + "_setup");
+        string[] infoSetup = linesSetup[0].Split('/');
+        int BPM = int.Parse(infoSetup[0]);
+        int BPB = int.Parse(infoSetup[1]);
+        float beginLoop = float.Parse(infoSetup[2]);
+        float endLoop = float.Parse(infoSetup[3]);
+
+        List<TransitionData> transitionsData = new List<TransitionData>();
+        int nextTransitionId = 0;
+
+        if (linesSetup.Length > 1)
+        {
+            string transitionSetup = linesSetup[1];
+
+            int index = transitionSetup.IndexOf(":");
+            string nextTransitionIdStr = transitionSetup.Substring(0, index);
+            nextTransitionId = int.Parse(nextTransitionIdStr);
+            
+            transitionSetup = transitionSetup.Substring(index + 1, transitionSetup.Length - 1 - index);
+
+            int endIndex = 0;
+            int midIndex = 0;
+
+            while ((index = transitionSetup.IndexOf("(")) != -1)
             {
-                Debug.Log(fileUrl + " found!");
-                entry.Extract("extraction");
-                Debug.Log(fileUrl + " extracted!");
-                break;
+                midIndex = transitionSetup.IndexOf(";");
+                endIndex = transitionSetup.IndexOf(")");
+
+                TransitionData trData = new TransitionData(0, 0);
+
+                string transitionId = transitionSetup.Substring(index + 1, midIndex - index - 1);
+                string transitionValue = transitionSetup.Substring(midIndex + 1, endIndex - midIndex - 1);
+
+                Debug.Log("New Transition : " + transitionId + " / " + transitionValue);
+
+                trData.id = int.Parse(transitionId);
+                trData.value = float.Parse(transitionValue);
+
+                transitionsData.Add(trData);
+                    
+                transitionSetup = transitionSetup.Substring(endIndex + 1, transitionSetup.Length - 1 - endIndex);
             }
         }
-        scenario.Dispose();
-        Debug.Log("scenario dispose");
 
-        string[] lines = File.ReadAllLines("extraction\\" + fileUrl);
-
-        string[] info = lines[0].Split('/');
-
-        string audioName = info[0];
-        int frequency = int.Parse(info[1]);
-        int channels = int.Parse(info[2]);
-        float length = float.Parse(info[3]);
-        int nbOfSamples = int.Parse(info[4]);
-        int BPM = int.Parse(info[5]);
-        int BPB = int.Parse(info[6]);
 
         float[] readSamples = new float[nbOfSamples * channels];
-
-        for (int i = 1; i < lines.Length; i++)
+        for (int i = 1; i < linesData.Length; i++)
         {
-            if (lines[i] != "")
-                readSamples[i] = float.Parse(lines[i]);
+            if (linesData[i] != "")
+                readSamples[i - 1] = float.Parse(linesData[i]);
         }
 
-        if (File.Exists(fileUrl))
-        {
-            Debug.Log("file " + fileUrl + " exists, deleting...");
-            File.Delete(fileUrl);
-            Debug.Log("file " + fileUrl + " deleted !");
-        }
-        else
-        {
-            Debug.Log("file " + fileUrl + " doesn't exist.");
-        }
+        if (Directory.Exists("extraction"))
+            Directory.Delete("extraction", true);
 
-        Directory.Delete("extraction", true);
-        Debug.Log("directory delete extraction");
-
-        int id = AppManager.Instance.ResourcesManager.CreateResource(audioName, nbOfSamples, channels, frequency, readSamples, BPM, BPB);
+        int id = AppManager.Instance.ResourcesManager.CreateResource(audioName, nbOfSamples, channels, frequency, readSamples, BPM, BPB, beginLoop, endLoop, transitionsData, nextTransitionId);
 
         if (AppManager.Instance.ResourcesManager.GetResource(id).Clip.loadState == AudioDataLoadState.Loaded)
         {
@@ -528,9 +582,39 @@ public class ScenarioManager : MonoBehaviour
         else
         {
             Debug.LogError("Resource " + audioName + " / " + fileUrl + " didn't load properly");
+            return;
         }
 
         Debug.Log("Audio File Loaded : " + audioName + " / " + fileUrl);
+    }
+
+    public void UpdateAudioFile(int resourceId)
+    {
+        Resource res = AppManager.Instance.ResourcesManager.GetResource(resourceId);
+
+        Debug.Log("Updating Audio File " + res.Name);
+        
+        string content = res.BPM + "/" + res.BPB + "/" + res.BeginLoop + "/" + res.EndLoop;
+        content += Environment.NewLine + res.nextTransitionId + ":";
+
+        for (int i = 0; i < res.Transitions.Count; ++i)
+        {
+            content += "(" + res.Transitions[i].id + ";" + res.Transitions[i].value + ")";
+        }
+
+        ZipFile zip = ZipFile.Read(scenarioUrl);
+        if (!zip.ContainsEntry(resourceId.ToString() + "_setup"))
+        {
+            Debug.LogError("Couldnt find " + resourceId + "in zip.");
+            zip.Dispose();
+            return;
+        }
+
+        zip.UpdateEntry(resourceId.ToString() + "_setup", content);
+        zip.Save(scenarioUrl);
+        zip.Dispose();
+
+        Debug.Log("Updated Audio File " + res.Name + " ( " + resourceId + " )");
     }
 
     private void UpdateSoundblockAudioLists()

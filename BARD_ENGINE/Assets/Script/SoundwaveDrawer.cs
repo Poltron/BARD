@@ -15,10 +15,17 @@ public class SoundwaveDrawer : MonoBehaviour
     [SerializeField]
     AudioClip testClip;
 
+    MaterialPropertyBlock propBlock;
+
     void Start ()
     {
-        if (SceneManager.GetActiveScene().name == "soundWave")
-            Draw(testClip);
+        propBlock = new MaterialPropertyBlock();
+
+        //if (SceneManager.GetActiveScene().name == "soundWave")
+        //    Draw(testClip);
+
+        propBlock.SetFloat("arraySize", 6.0f);
+
 	}
 	
     public void Draw(AudioClip clip)

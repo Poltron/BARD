@@ -115,7 +115,7 @@ public class SoundBlock : MonoBehaviour
     {
         if (source != null)
         {
-            source.time = 1;
+            source.time = 0;
             source.Play();
 
             AppManager.Instance.ScenarioManager.SetActiveSoundBlock(this);

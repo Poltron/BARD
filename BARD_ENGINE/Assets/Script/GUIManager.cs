@@ -29,6 +29,7 @@ public class GUIManager : MonoBehaviour
 
     [SerializeField]
     private ResourceViewDetails resourceDetailsPanel;
+    public ResourceViewDetails ResourceViewDetails { get { return resourceDetailsPanel; } }
 
     [SerializeField]
     private GameObject viewBar;
@@ -107,8 +108,7 @@ public class GUIManager : MonoBehaviour
     public void AddResourceViewListEntry(Resource resource)
     {
         GameObject go = GameObject.Instantiate(resourceListEntryPrefab, Vector3.zero, Quaternion.identity);
-        go.transform.SetParent(resourceListContent);
-        go.transform.localPosition = new Vector3( 15, -15 + resourceListEntries.Count * -40, 0);
+        go.transform.SetParent(resourceListContent, false);
 
         go.GetComponent<ResourceViewEntry>().SetResource(resource.Id);
         go.GetComponentInChildren<Text>().text = resource.Name;
