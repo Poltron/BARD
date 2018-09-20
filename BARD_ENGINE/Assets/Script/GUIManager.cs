@@ -13,8 +13,11 @@ public class GUIManager : MonoBehaviour
     private Button scenarioViewButton;
     [SerializeField]
     private Button resourceViewButton;
+
     [SerializeField]
-    private Canvas scenarioView;
+    private ScenarioView scenarioView;
+    public ScenarioView ScenarioView { get { return scenarioView; } }
+
     [SerializeField]
     private Canvas resourceView;
     [SerializeField]
@@ -50,6 +53,9 @@ public class GUIManager : MonoBehaviour
     private Button drawLink;
     [SerializeField]
     private Button importAudioFile;
+
+    [SerializeField]
+    private LinkDetailsView linkDetailsView;
 
     void Awake()
     {

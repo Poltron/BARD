@@ -30,6 +30,8 @@ public class ScenarioManager : MonoBehaviour
     private bool isScenarioOpened;
     private string scenarioUrl;
 
+    public bool isPlaying;
+
     void Start()
     {
         blocks = new List<SoundBlock>();
@@ -47,11 +49,13 @@ public class ScenarioManager : MonoBehaviour
     {
         firstBlock.PlaySound();
         activeSoundBlock = firstBlock;
+        isPlaying = true;
     }
 
     public void StopSoundTrack()
     {
         activeSoundBlock.StopSound();
+        isPlaying = false;
     }
 
     public void SetActiveSoundBlock(SoundBlock active)
@@ -122,12 +126,18 @@ public class ScenarioManager : MonoBehaviour
     /*
      *      Draw a transition link between to soundblocks
      */
-    public void DrawLink(SoundBlock FromSoundBlock, SoundBlock ToSoundBlock)
+    public void DrawLink(SoundBlock FromSoundBlock, SoundBlock ToSoundBlock, LinkType linkType)
     {
         // Spawns link
         GameObject go = GameObject.Instantiate(LinkPrefab, Vector3.zero, Quaternion.identity);
         go.transform.SetParent(FromSoundBlock.transform, false);
-        FromSoundBlock.link = go.GetComponent<Link>();
+
+        Link link = go.GetComponent<Link>();
+        FromSoundBlock.link = link;
+
+        link.previousBlock = FromSoundBlock;
+        link.nextBlock = ToSoundBlock;
+        link.linkType = linkType;
 
         // if the FROM block is looping, disable automatic transition
         if (!FromSoundBlock.source.loop)
@@ -181,7 +191,6 @@ public class ScenarioManager : MonoBehaviour
     public void SaveScenario()
     {
         ScenarioSave scenario = new ScenarioSave();
-        Debug.Log(" /////////////////////////////////////////////// ");
 
         scenario.resources = new ResourceData[AppManager.Instance.ResourcesManager.Count()];
         for (int i = 0; i < scenario.resources.Length; ++i)
@@ -189,7 +198,6 @@ public class ScenarioManager : MonoBehaviour
             ResourceData resourceData = new ResourceData();
             resourceData.id = AppManager.Instance.ResourcesManager.Resources[i].Id;
             scenario.resources[i] = resourceData;
-            Debug.Log("save resource " + resourceData.id);
         }
 
         scenario.soundblocks = new SoundBlockData[blocks.Count];
@@ -227,6 +235,7 @@ public class ScenarioManager : MonoBehaviour
                 LinkData link = new LinkData();
                 link.fromSoundblock = blocks[i].soundblockId;
                 link.toSoundblock = blocks[i].nextBlock.soundblockId;
+                link.linkType = blocks[i].link.linkType;
                 link.isActive = blocks[i].link.IsActive;
 
                 scenario.links[nextLinkIndex] = link;
@@ -270,7 +279,6 @@ public class ScenarioManager : MonoBehaviour
 
             AppManager.Instance.GUIManager.ChangeScenarioName(paths[0]);
             AppManager.Instance.GUIManager.ToggleScenarioUI(true);
-
         }
     }
 
@@ -291,50 +299,57 @@ public class ScenarioManager : MonoBehaviour
         string structure = File.ReadAllText("structure");
         File.Delete("structure");
 
-        if (structure != "")
-            LoadScenarioStructure(structure);
-    }
+        if (structure == "")
+        {
+            Debug.LogError("Chargement d'un fichier structure vide ?");
+            return;
+        }
 
-    public void LoadScenarioStructure(string structure)
-    {
         ScenarioSave scenarioSave = new ScenarioSave();
         XmlSerializer serializer = new XmlSerializer(scenarioSave.GetType());
-        
+
         using (TextReader reader = new StringReader(structure))
         {
             scenarioSave = (ScenarioSave)serializer.Deserialize(reader);
+
+            reader.Dispose();
         }
 
         ResetScenario();
 
+        LoadScenarioResources(scenarioSave);
+        LoadScenarioStructure(scenarioSave);
+    }
+
+    public void LoadScenarioResources(ScenarioSave scenarioSave)
+    {
+        Debug.Log("Project Resources loading...");
+
+        for (int i = 0; i < scenarioSave.resources.Length; i++)
+        {
+            Debug.Log("Loading Resource " + scenarioSave.resources[i].id);
+            LoadAudioFile(scenarioSave.resources[i].id.ToString());
+            Debug.Log("Loaded Resource " + scenarioSave.resources[i].id + " / " + AppManager.Instance.ResourcesManager.GetResource(scenarioSave.soundblocks[i].clipId).Name);
+        }
+
+        Debug.Log("Project Resources loaded");
+    }
+
+    public void LoadScenarioStructure(ScenarioSave scenarioSave)
+    {
         Debug.Log("Scenario Loading...");
+    
         for (int i = 0; i < scenarioSave.soundblocks.Length; i++)
         {
             Debug.Log("Loading Soundblock " + scenarioSave.soundblocks[i].blockId);
-
-            Resource soundBlockResource = AppManager.Instance.ResourcesManager.GetResource(scenarioSave.soundblocks[i].clipId);
-
-            if (soundBlockResource == null)
-            {
-                Debug.Log("Soundblock " + i + ", Clip not found");
-                LoadAudioFile(scenarioSave.soundblocks[i].clipId.ToString());
-
-                Debug.Log(AppManager.Instance.ResourcesManager.GetResource(scenarioSave.soundblocks[i].clipId).Transitions.Count);
-            }
-            else
-            {
-                Debug.Log("Soundblock " + i + ", Clip already loaded");
-            }
-
             SpawnSoundBlock(scenarioSave.soundblocks[i].position, scenarioSave.soundblocks[i].blockId, scenarioSave.soundblocks[i].clipId, scenarioSave.soundblocks[i].isLooping);
-
             Debug.Log("Loaded Soundblock " + scenarioSave.soundblocks[i].blockId);
         }
 
         for (int i = 0; i < scenarioSave.links.Length; i++)
         {
             Debug.Log("Drawing link ( " + scenarioSave.links[i].fromSoundblock + " -> " + scenarioSave.links[i].toSoundblock + " ) ");
-            DrawLink(GetSoundBlock(scenarioSave.links[i].fromSoundblock), GetSoundBlock(scenarioSave.links[i].toSoundblock));
+            DrawLink(GetSoundBlock(scenarioSave.links[i].fromSoundblock), GetSoundBlock(scenarioSave.links[i].toSoundblock), scenarioSave.links[i].linkType);
             Debug.Log("Drawn link");
         }
 
@@ -409,7 +424,6 @@ public class ScenarioManager : MonoBehaviour
 
                 short int16 = (short)(((buffer[i] & 0xFF) << 8) | (buffer[i + 1] & 0xFF));
                 float f = int16;
-                int j = 16;
                 sw.WriteLine(f);
             }
         }
@@ -651,6 +665,7 @@ public struct LinkData
 {
     public int fromSoundblock;
     public int toSoundblock;
+    public LinkType linkType;
     public bool isActive;
 }
 

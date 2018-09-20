@@ -27,17 +27,21 @@ public class InputController : MonoBehaviour
             firstSoundblockClick = soundBlock;
             GameObject go = GameObject.Instantiate(LinkPrefab, Vector3.zero, Quaternion.identity);
             go.transform.SetParent(firstSoundblockClick.transform);
-            firstSoundblockClick.link = go.GetComponent<Link>();
 
+            Link link = go.GetComponent<Link>();
+            firstSoundblockClick.link = link;
+            
             if (!firstSoundblockClick.source.loop)
                 firstSoundblockClick.link.IsActive = true;
             else
                 firstSoundblockClick.link.IsActive = false;
 
+            link.previousBlock = firstSoundblockClick;
         }
         else if (firstSoundblockClick != soundBlock)
         {
             firstSoundblockClick.nextBlock = soundBlock;
+            firstSoundblockClick.link.nextBlock = soundBlock;
 
             StopDrawLink();
         }

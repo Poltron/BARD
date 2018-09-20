@@ -4,6 +4,13 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
+public enum LinkType
+{
+    Cut = 0,
+    CrossFade,
+    DemiCrossFade
+}
+
 public class Link : MonoBehaviour, IPointerClickHandler
 {
     [SerializeField]
@@ -13,7 +20,11 @@ public class Link : MonoBehaviour, IPointerClickHandler
     
     public bool IsActive;
 
-	void Update()
+    public SoundBlock previousBlock;
+    public LinkType linkType;
+    public SoundBlock nextBlock;
+
+    void Update()
     {
 		if (IsActive)
         {
@@ -29,7 +40,6 @@ public class Link : MonoBehaviour, IPointerClickHandler
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (!AppManager.Instance.InputController.IsDrawingLink)
-            IsActive = !IsActive;
+        AppManager.Instance.GUIManager.ScenarioView.SetActiveLink(this);
     }
 }

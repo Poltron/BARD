@@ -89,14 +89,16 @@ public class SoundBlock : MonoBehaviour
 
         if (source != null && source.clip != null)
         {
-            if (source.time >= source.clip.length - 1)
+            if (source.time >= source.clip.length - 0.5f)
             {
-                if (source.loop && ((link == null) || (!link.IsActive )) )
+                if (source.loop && ((link == null) || !AppManager.Instance.GUIManager.ScenarioView.goToNextSound))
                 {
-                    source.time = 1;
+                    source.time = 0;
                 }
                 else
                 {
+                    AppManager.Instance.GUIManager.ScenarioView.goToNextSound = false;
+
                     StopSound();
                     
                     if (nextBlock)
@@ -106,7 +108,7 @@ public class SoundBlock : MonoBehaviour
                 }
             }
 
-            float ratio = (source.time - 1) / (source.clip.length - 2);
+            float ratio = source.time / source.clip.length;
             slider.value = ratio;
         }
     }
