@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using UnityEditor;
 #endif
 
-enum BEAT_TIMING : int
+public enum BEAT_TIMING : int
 {
     ON_1 = 0,
     ON_2 = 1,
@@ -15,14 +15,14 @@ enum BEAT_TIMING : int
     ON_4 = 3
 }
 
-enum TRACK_TIMING : int
+public enum TRACK_TIMING : int
 {
     ON_NOTIF = 0,
     ON_TRACK_END = 1
 }
 
 [RequireComponent(typeof(AudioSource))]
-internal class SequencerOneshot : SequencerBase
+public class SequencerOneshot : SequencerBase
 {
     #region Enumerations
 
@@ -154,6 +154,7 @@ internal class SequencerOneshot : SequencerBase
     private int beatNumber;
     private Action<Action> callback;
     private BEAT_TIMING callbackTiming;
+    private string sequencerName;
     #endregion
 
     #region Properties
@@ -179,6 +180,7 @@ internal class SequencerOneshot : SequencerBase
 #if UNITY_EDITOR
         _isMutedOld = this.isMuted;
         _oldBpm = this.bpm;
+        sequencerName = gameObject.name;
 #endif
         StartCoroutine(Init());
     }
@@ -510,7 +512,9 @@ internal class SequencerOneshot : SequencerBase
 
         if (neededFadeout && (_currentStep % 4) == (int)callbackTiming)
         {
-            callback.Invoke(EndSound);
+            if (callback != null)
+                callback.Invoke(EndSound);
+
             neededFadeout = false;
         }
 
@@ -527,7 +531,7 @@ internal class SequencerOneshot : SequencerBase
         if (_fadeProgress < 1)
         {
             _fadeProgress += Time.deltaTime * _fadeSpeed;
-            if (_fadeProgress > 1) _fadeProgress = 1;
+            if (_fadeProgress > 1) _fadeProgress = 1; 
             _audioSource.volume = Mathf.Lerp(_volumeBeforeFade, _volumeAfterFade, _fadeProgress);
             if (_fadeProgress == 1)
             {
@@ -578,7 +582,8 @@ internal class SequencerOneshot : SequencerBase
     void OnAudioFilterRead(float[] data, int channels)
     {
         if (!IsReady || !_isPlaying) return;
-        if (_clipData == null) return;
+
+        Debug.Log("audiofilterread " + sequencerName);
 
         double samplesPerTick = _sampleRate * 60.0F / bpm * 4.0F / signatureLo;
         double sample = AudioSettings.dspTime * _sampleRate;
@@ -625,7 +630,11 @@ internal class SequencerOneshot : SequencerBase
                 }
             }
 
-            if (_index != -1)
+            if (_clipData == null)
+            {
+                data[dataIndex] = 0;
+            }
+            else if (_index != -1)
             {
                 data[dataIndex] += _clipData[_index];
 

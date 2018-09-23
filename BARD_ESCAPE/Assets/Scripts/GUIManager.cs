@@ -10,7 +10,7 @@ public class GUIManager : MonoBehaviour
     ScenarioManager scenarioManager;
 
     [SerializeField]
-    SoundHandler soundHandler;
+    SimpleSoundHandler soundHandler;
 
     [SerializeField]
     private Canvas canvas;
@@ -38,6 +38,9 @@ public class GUIManager : MonoBehaviour
 
     [SerializeField]
     private Button Scenario3Button;
+
+    [SerializeField]
+    private Button NextPhaseButton;
 
     public void GoToLoadScenarioMenu()
     {
@@ -126,9 +129,14 @@ public class GUIManager : MonoBehaviour
         HomeMenu.gameObject.SetActive(false);
     }
 
+    public void ToggleNextPhaseButton(bool enabled)
+    {
+        NextPhaseButton.gameObject.SetActive(enabled);
+    }
+
     public void ResetScenario()
     {
-        soundHandler.ResetScenario();
+        //soundHandler.ResetScenario();
     }
 
     public void PlayButton()
@@ -138,12 +146,12 @@ public class GUIManager : MonoBehaviour
 
     public void PauseButton()
     {
-        soundHandler.PauseScenario();
+        //soundHandler.PauseScenario();
     }
 
     public void StopButton()
     {
-        soundHandler.StopScenario();
+       // soundHandler.StopScenario();
     }
 
     public void ChangeScenarioName(string text)

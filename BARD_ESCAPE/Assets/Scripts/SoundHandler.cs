@@ -6,9 +6,10 @@ using UnityEngine;
 public class SoundHandler : MonoBehaviour
 {
     [SerializeField]
-    private ScenarioManager scenarioManager;
+    private ResourcesManager resourcesManager;
 
-    public List<AudioClip> clips;
+    [SerializeField]
+    private ScenarioManager scenarioManager;
 
     [SerializeField]
     private SequencerDriver driver;
@@ -18,17 +19,26 @@ public class SoundHandler : MonoBehaviour
 
     private SoundBlock actualBlock;
 
+    SequencerOneshot activeSequencer;
+
     public void PlayScenario()
     {
         if (!driver.IsPlaying)
         {
             if (actualBlock == null)
             {
-                PlayBlock(scenarioManager.FirstBlock.soundblockId, BEAT_TIMING.ON_1, null);
+                PlayBlock(1, BEAT_TIMING.ON_1, null);
+                PlayBlock(2, BEAT_TIMING.ON_1, null);
             }
-
-            driver.Play();
         }
+
+        driver.Play();
+    }
+
+    private void StopBlock(int blockId)
+    {
+        actualBlock = scenarioManager.GetSoundBlock(blockId);
+        activeSequencer.Mute(true, 1.0f);
     }
 
     private void PlayBlock(int blockId, BEAT_TIMING timing, Action callbackAtSoundBeginning = null)
@@ -36,34 +46,54 @@ public class SoundHandler : MonoBehaviour
         SequencerOneshot shot = GetFreeSequencer();
 
         if (!shot)
+        {
             Debug.LogError("no free sequencer");
+            return;
+        }
+
+        activeSequencer = shot;
 
         actualBlock = scenarioManager.GetSoundBlock(blockId);
-        AudioClip clip = GetClip(actualBlock.clip);
+        AudioClip clip = resourcesManager.GetResource(actualBlock.clipId).Clip;
 
         if (!clip)
-            Debug.LogError("no clip for " + scenarioManager.FirstBlock.clip);
+        {
+            Debug.LogError("no clip for " + actualBlock.clipId);
+            return;
+        }
 
         shot.sequence[(int)timing] = true;
         shot.SetAudioClip(clip);
         shot.SetLoop(actualBlock.isLooping);
+        shot.OnAnyStep += () => { Debug.Log("onanystep"); };
+        shot.OnBeat += () => { Debug.Log("onbeat"); };
 
         if (callbackAtSoundBeginning != null)
         {
-            shot.SetSoundBeginCallback(action);
+            //shot.SetSoundBeginCallback(action);
         }
 
         if (actualBlock.nextBlock != null)
         {
-            shot.SetNextSoundCallback(NextSoundblock, BEAT_TIMING.ON_2);
+            //shot.SetNextSoundCallback(NextSoundblock, BEAT_TIMING.ON_2);
         }
     }
 
-    private void NextSoundblock(Action action)
+    public void NextSoundblock(Action action)
     {
         if (actualBlock.nextBlock != null)
         {
+            StopBlock(actualBlock.soundblockId);
             PlayBlock(actualBlock.nextBlock.soundblockId, BEAT_TIMING.ON_1, action);
+        }
+    }
+
+    public void NextSoundblock()
+    {
+        if (actualBlock.nextBlock != null)
+        {
+            StopBlock(actualBlock.soundblockId);
+            PlayBlock(actualBlock.nextBlock.soundblockId, BEAT_TIMING.ON_1, null);
         }
     }
 
@@ -89,7 +119,7 @@ public class SoundHandler : MonoBehaviour
         {
             SequencerOneshot oneShot = sequencer as SequencerOneshot;
 
-            if (oneShot && !oneShot.IsBusy)
+            if (oneShot && !oneShot.IsBusy && oneShot != activeSequencer)
             {
                 return oneShot;
             }
@@ -97,28 +127,4 @@ public class SoundHandler : MonoBehaviour
 
         return null;
     }
-
-    public AudioClip GetClip(string name)
-    {
-        foreach (AudioClip clip in clips)
-        {
-            if (clip.name == name)
-            {
-                return clip;
-            }
-        }
-
-        return null;
-    }
-
-    public void ClearClips()
-    {
-        for (int i = 0; i < clips.Count; i++)
-        {
-            clips[i].UnloadAudioData();
-        }
-
-        clips.Clear();
-    }
-
 }

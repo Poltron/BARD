@@ -5,7 +5,8 @@ using UnityEngine;
 public class SoundBlock
 {
     public int soundblockId;
-    public string clip;
+    public int clipId;
     public bool isLooping;
     public SoundBlock nextBlock;
+    public LinkType linkType;
 }
