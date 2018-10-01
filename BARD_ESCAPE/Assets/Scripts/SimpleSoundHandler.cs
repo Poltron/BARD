@@ -21,6 +21,13 @@ public class SimpleSoundHandler : MonoBehaviour
 
     private SoundBlock activeSoundblock;
     private AudioSource activeAudiosource;
+    private SoundBlock nextSoundBlock;
+    private AudioSource nextAudiosource;
+    
+    private double nextTransitionTime;
+
+    private bool isPlaying;
+    public bool IsPlaying { get { return isPlaying; } }
 
     void Start()
     {
@@ -42,6 +49,14 @@ public class SimpleSoundHandler : MonoBehaviour
 
     public void PlayScenario()
     {
+        if (AudioListener.pause)
+        {
+            AudioListener.pause = false;
+            return;
+        }
+
+        StopScenario();
+
         AudioSource audioSource = GetFreeAudioSource();
 
         if (!audioSource)
@@ -63,20 +78,22 @@ public class SimpleSoundHandler : MonoBehaviour
 
         audioSource.clip = clip;
         audioSource.Play();
+        isPlaying = true;
 
-        guiManager.ToggleNextPhaseButton(activeSoundblock.isLooping);
-
-        if (activeSoundblock.isLooping == false)
-        {
-            NextSoundblock();
-        }
+        PrepareNextBlock();
     }
 
     public void StopScenario()
     {
         activeSoundblock = null;
+        activeAudiosource = null;
+        nextSoundBlock = null;
+        nextAudiosource = null;
+        nextTransitionTime = double.MaxValue;
 
-        foreach(AudioSource audioSource in audioSources)
+        isPlaying = false;
+
+        foreach (AudioSource audioSource in audioSources)
         {
             audioSource.Stop();
             audioSource.volume = 1;
@@ -84,37 +101,63 @@ public class SimpleSoundHandler : MonoBehaviour
         }
     }
 
-    public void NextSoundblock()
+    public void NextBlock()
     {
-        Debug.Log("next soundblock");
-
         if (activeSoundblock.nextBlock != null)
         {
+            Debug.Log("next block");
+
             float timeLeft = activeAudiosource.clip.length - activeAudiosource.time;
+
+            nextTransitionTime = AudioSettings.dspTime + timeLeft;
+
             activeAudiosource.SetScheduledEndTime(AudioSettings.dspTime + timeLeft);
-
-            AudioSource previousActiveAudioSource = activeAudiosource;
-
-            activeAudiosource = GetFreeAudioSource();
-            activeSoundblock = scenarioManager.GetSoundBlock(activeSoundblock.nextBlock.soundblockId);
-
-            activeAudiosource.loop = activeSoundblock.isLooping;
-            activeAudiosource.clip = resourcesManager.GetResource(activeSoundblock.clipId).Clip;
-            activeAudiosource.PlayScheduled(AudioSettings.dspTime + timeLeft);
-
-            guiManager.ToggleNextPhaseButton(activeSoundblock.isLooping);
-
-            if (activeSoundblock.isLooping == false)
-            {
-                NextSoundblock();
-            }
-
-            Debug.Log(activeSoundblock.soundblockId + " is active");
+            nextAudiosource.PlayScheduled(AudioSettings.dspTime + timeLeft);
         }
+    }
+
+    public void PrepareNextBlock()
+    {
+        if (activeSoundblock.nextBlock != null)
+        {
+            Debug.Log("prepare next block");
+
+            nextAudiosource = GetFreeAudioSource();
+            nextSoundBlock = scenarioManager.GetSoundBlock(activeSoundblock.nextBlock.soundblockId);
+
+            nextAudiosource.loop = nextSoundBlock.isLooping;
+            nextAudiosource.clip = resourcesManager.GetResource(nextSoundBlock.clipId).Clip;
+
+            if (!activeSoundblock.isLooping)
+            {
+                NextBlock();
+            }
+        }
+    }
+
+    public void PauseScenario()
+    {
+        AudioListener.pause = true;
+    }
+
+    public float GetProgression()
+    {
+        return activeAudiosource.time / activeAudiosource.clip.length;
     }
 
     void Update()
     {
-        
+        if (AudioSettings.dspTime > nextTransitionTime && isPlaying)
+        {
+            Debug.Log("update");
+            activeSoundblock = nextSoundBlock;
+            activeAudiosource = nextAudiosource;
+
+            guiManager.ToggleNextPhaseButton(activeSoundblock.isLooping);
+
+            nextTransitionTime = double.MaxValue;
+
+            PrepareNextBlock();
+        }
 	}
 }

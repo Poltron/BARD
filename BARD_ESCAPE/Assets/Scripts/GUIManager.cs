@@ -42,6 +42,9 @@ public class GUIManager : MonoBehaviour
     [SerializeField]
     private Button NextPhaseButton;
 
+    [SerializeField]
+    private Slider ProgressionSlider;
+
     public void GoToLoadScenarioMenu()
     {
         UpdateScenarioAvailableList();
@@ -136,7 +139,7 @@ public class GUIManager : MonoBehaviour
 
     public void ResetScenario()
     {
-        //soundHandler.ResetScenario();
+        soundHandler.StopScenario();
     }
 
     public void PlayButton()
@@ -146,12 +149,17 @@ public class GUIManager : MonoBehaviour
 
     public void PauseButton()
     {
-        //soundHandler.PauseScenario();
+        soundHandler.PauseScenario();
     }
 
     public void StopButton()
     {
-       // soundHandler.StopScenario();
+        soundHandler.StopScenario();
+    }
+
+    public void VolumeSlider(float volume)
+    {
+        AudioListener.volume = volume;
     }
 
     public void ChangeScenarioName(string text)
@@ -162,5 +170,13 @@ public class GUIManager : MonoBehaviour
     public void Exit()
     {
         Application.Quit();
+    }
+
+    public void Update()
+    {
+        if (soundHandler && soundHandler.IsPlaying)
+        {
+            ProgressionSlider.value = soundHandler.GetProgression();
+        }
     }
 }
